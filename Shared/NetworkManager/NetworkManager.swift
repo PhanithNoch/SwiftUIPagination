@@ -5,13 +5,155 @@ class NetworkManager:ObservableObject {
     //2. create session
     //3 working with your task
     
-   
+    
     let urlString = "https://peopleinfoapi.herokuapp.com/api/people"
     @Published var people = PeopleModel()
     @Published var isDeleted = false
     @Published var isCreated = false
     @Published var isUpdated = false
     var temp: [String:[People]] = [ : ]
+    
+    
+    func searchPeople(query:String,currentScrool:String)  {
+        print(query)
+      
+        var page:Int = 0
+        page = people.meta?.current_page ?? 1
+        let decoder = JSONDecoder()
+        if currentScrool == ""
+        {
+       
+            var request = URLRequest(url:URL(string: "https://peopleinfoapi.herokuapp.com/api/searchPeople?page=\(page)")!)
+          print(request)
+            request.httpMethod  = "POST"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+            let parameters: [String: Any] = [
+                "first_name": query
+                
+            ]
+            let jsonData = try? JSONSerialization.data(withJSONObject: parameters)
+            request.httpBody =  jsonData
+            let session = URLSession(configuration: .default)
+            session.dataTask(with: request) {(data,respose,error) in
+                if (error != nil)
+                {
+                    print(error!)
+                }
+                if let safeData = data {
+                    do {
+                        let decodeData =  try decoder.decode(PeopleModel.self, from: safeData)
+                        DispatchQueue.main.async {
+                            print(decodeData.data)
+                            if !decodeData.data.isEmpty{
+                                print("data found")
+                                self.people = decodeData
+                            }
+                            if decodeData.data.isEmpty{
+                                print("data not found")
+                                self.people.data = decodeData.data
+                                self.people.links  = decodeData.links
+                                self.people.meta  = decodeData.meta
+                            }
+//                                self.temp["\(page)"] = self.people.data
+                            
+                        }
+                        
+                    }
+                    catch{
+                        print("error parse JSON \(error)")
+                    }
+                }
+            }.resume() // start task
+            
+        }
+        if currentScrool == "up"{
+            print(currentScrool)
+            page = page + 1
+            var request = URLRequest(url:URL(string: "https://peopleinfoapi.herokuapp.com/api/searchPeople?page=\(page)")!)
+            print(request)
+            request.httpMethod  = "POST"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+            let parameters: [String: Any] = [
+                "first_name": query
+                
+            ]
+            let jsonData = try? JSONSerialization.data(withJSONObject: parameters)
+            request.httpBody =  jsonData
+            let session = URLSession(configuration: .default)
+           
+            if page <= people.meta!.last_page && people.meta!.current_page != people.meta!.last_page {
+                session.dataTask(with: request) {(data,respose,error) in
+                    if (error != nil)
+                    {
+                        print(error!)
+                    }
+                    if let safeData = data {
+                        do {
+                            let decodeData =  try decoder.decode(PeopleModel.self, from: safeData)
+                            DispatchQueue.main.async {
+                                
+                                self.people = decodeData
+                                self.people.links = decodeData.links
+                                self.people.meta = decodeData.meta
+//                                self.temp["\(page)"] = self.people.data
+                                
+                            }
+                            
+                        }
+                        catch{
+                            print("error parse JSON \(error)")
+                        }
+                    }
+                }.resume() // start task
+            }
+        }
+        if currentScrool == "down" {
+            print(currentScrool)
+            print("current: \(currentScrool)")
+            page = page - 1
+            var request = URLRequest(url:URL(string: "https://peopleinfoapi.herokuapp.com/api/searchPeople?page=\(page)")!)
+            print(request)
+            request.httpMethod  = "POST"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+            let parameters: [String: Any] = [
+                "first_name": query
+                
+            ]
+            let jsonData = try? JSONSerialization.data(withJSONObject: parameters)
+            request.httpBody =  jsonData
+            let session = URLSession(configuration: .default)
+           
+         
+                session.dataTask(with: request) {(data,respose,error) in
+                    if (error != nil)
+                    {
+                        print(error!)
+                    }
+                    if let safeData = data {
+                        do {
+                            let decodeData =  try decoder.decode(PeopleModel.self, from: safeData)
+                            DispatchQueue.main.async {
+                                
+                                self.people = decodeData
+                                self.people.links = decodeData.links
+                                self.people.meta = decodeData.meta
+//                                self.temp["\(page)"] = self.people.data
+                            }
+                            
+                        }
+                        catch{
+                            print("error parse JSON \(error)")
+                        }
+                    }
+                }.resume() // start task
+            
+        }
+       
+    }
+    
     func performRequest()  {
         if let url = URL(string: urlString){
             let session = URLSession(configuration: .default)
@@ -24,6 +166,7 @@ class NetworkManager:ObservableObject {
                 if let safeData = data {
                     //let dataString = String(data:safeData,encoding: .utf8)
                     self.parseJSON(peopleModel: safeData)
+                    
                     //                    print(dataString!)
                 }
             }.resume() // start task
@@ -34,13 +177,10 @@ class NetworkManager:ObservableObject {
         let decoder = JSONDecoder()
         do {
             let decodeData =  try decoder.decode(PeopleModel.self, from: peopleModel)
-//            print(decodeData.data[0])
-            
             DispatchQueue.main.async {
                 self.people = decodeData
                 self.temp["\(decodeData.meta!.current_page)"] = decodeData.data
             }
-            
         }
         catch{
             print("error parse JSON \(error)")
@@ -53,69 +193,61 @@ class NetworkManager:ObservableObject {
         page = people.meta?.current_page ?? 0
         if currentScrool == "up"
         {
-        
             page = page + 1
             if page <= people.meta!.last_page && people.meta!.current_page != people.meta!.last_page{
                 
-                   if let url = URL(string: "\(urlString)?page=\(page)"){
-                       print(url)
-                       let session = URLSession(configuration: .default)
-                       //let task =
-                       session.dataTask(with: url) {(data,respose,error) in
-                           if (error != nil)
-                           {
-                               print(error!)
-                           }
-                           if let safeData = data {
-                              
-                               do {
-                                   let decodeData =  try decoder.decode(PeopleModel.self, from: safeData)
-                                   
-                                   DispatchQueue.main.async {
-                                     self.people.data = []
-                                       self.people.data.append(contentsOf: decodeData.data)
-                                       self.people.links = decodeData.links
-                                       self.people.meta = decodeData.meta
-                                       self.temp["\(page)"] = self.people.data
-                                   
-                                   }
-                                   
-                               }
-                               catch{
-                                   print("error parse JSON \(error)")
-                               }
-                             
-           //                    self.parseJSON(peopleModel: safeData)
-                               print(self.temp["1"])
-                               print(self.temp["2"])
-                               print(self.temp["3"])
-                           }
-                       }.resume() // start task
-                   }
+                if let url = URL(string: "\(urlString)?page=\(page)"){
+                
+                    let session = URLSession(configuration: .default)
+                    //let task =
+                    session.dataTask(with: url) {(data,respose,error) in
+                        if (error != nil)
+                        {
+                            print(error!)
+                        }
+                        if let safeData = data {
+                            
+                            do {
+                                let decodeData =  try decoder.decode(PeopleModel.self, from: safeData)
+                                
+                                DispatchQueue.main.async {
+                                    self.people.data.append(contentsOf: decodeData.data)
+                                    self.people.links = decodeData.links
+                                    self.people.meta = decodeData.meta
+                                    self.temp["\(page)"] = self.people.data
+                                    
+                                }
+                                
+                            }
+                            catch{
+                                print("error parse JSON \(error)")
+                            }
+                            //                               print(self.temp["1"])
+                            //                               print(self.temp["2"])
+                            //                               print(self.temp["3"])
+                        }
+                    }.resume() // start task
+                }
             }
             
-           
             
-           
+            
+            
         }
         else{
             if page > 1 {
-            
-             
                 DispatchQueue.main.async {
                     page = page - 1
-                    print(page)
-                    print(self.temp["\(page)"])
                     self.people.data = []
                     self.people.data = self.temp["\(page)"]!
                     self.people.meta!.current_page =  (self.people.meta!.current_page) - 1
-                  
+                    
                 }
-            
+                
             }
         }
-       
-
+        
+        
     }
     
     
@@ -128,7 +260,7 @@ class NetworkManager:ObservableObject {
         request.httpMethod  = "DELETE"
         let session = URLSession(configuration: .default)
         session.dataTask(with: request){(data,res,err)in
-          
+            
             if err != nil {
                 print(err!.localizedDescription)
                 
@@ -136,7 +268,7 @@ class NetworkManager:ObservableObject {
             if err == nil,let data = data, let response = res as? HTTPURLResponse {
                 print(response.statusCode)
                 print(data)
-              
+                
                 DispatchQueue.main.async {
                     self.people.data.removeAll{
                         (person)-> Bool in
@@ -166,12 +298,8 @@ class NetworkManager:ObservableObject {
             "active_date": person.active_date,
             
         ]
-        // covert diectionary to json
         let jsonData = try? JSONSerialization.data(withJSONObject: parameters)
-        
         request.httpBody =  jsonData
-        
-        
         let session = URLSession(configuration: .default)
         session.dataTask(with: request){(data,res,err) in
             if err != nil {
@@ -187,7 +315,7 @@ class NetworkManager:ObservableObject {
                     }
                 }
             }
-         
+            
         }.resume()
         
     }
@@ -206,7 +334,6 @@ class NetworkManager:ObservableObject {
             "active_date": person.active_date,
             
         ]
-        // covert diectionary to json
         let jsonData = try? JSONSerialization.data(withJSONObject: parameters)
         
         request.httpBody =  jsonData
@@ -226,9 +353,7 @@ class NetworkManager:ObservableObject {
                 }
             }
             guard let response = data else {return}
-            let status = String(data:response,encoding: .utf8) ?? ""
-            
-            print(status)
+            //            let status = String(data:response,encoding: .utf8) ?? ""
             
         }.resume()
     }

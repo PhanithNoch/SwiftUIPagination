@@ -11,58 +11,78 @@ struct ContentView: View {
     //1.
     @ObservedObject var networkManager = NetworkManager()
     @State var searchController = ""
-    init() {
-        UITableView.appearance().backgroundColor = .clear
-        UITableViewCell.appearance().backgroundColor = .clear
-        
-        //Use this if NavigationBarTitle is with Large Font
-        UINavigationBar.appearance().largeTitleTextAttributes = [.foregroundColor: UIColor.white]
-        
-        //Use this if NavigationBarTitle is with displayMode = .inline
-//        UINavigationBar.appearance().titleTextAttributes = [.foregroundColor: UIColor.red]
-        
-        //        UINavigationBar.appearance().backgroundColor = .blue
-    }
+    @State private var isEditing = false
+    @State var currentScrool = ""
+    
     var body: some View {
-            ScrollView {
-        
-                    VStack{
-                        TextField("Search",text:$searchController)
-                        HStack(alignment:.center){
-                            Text("\(networkManager.people.meta?.current_page ?? 0 )" )
-                            Text("/")
-                            Text("\(networkManager.people.meta?.last_page ?? 0)")
-                        }
-                       
-                        ForEach(networkManager.people.data, id:\.id){ person in
-                            VStack{
-                              
-                                CardRow(person: person)
-                            }
+        ScrollView {
+            
+            VStack{
+                HStack{
+                    TextField("Search",text:$searchController).textFieldStyle(RoundedBorderTextFieldStyle()).onTapGesture {
+                        self.isEditing = true
+                    }
+                    Button(action: {
+                        if isEditing && searchController != "" {
+                          
+                            networkManager.searchPeople(query: searchController,currentScrool: "")
                             
                         }
-                        
-                    }.padding()
-                  
-                .onAppear(perform: {
-                
-                    networkManager.performRequest()
-                    
-                })
-            }.gesture(
-                DragGesture().onChanged { value in
-                   if value.translation.height > 0 {
-                      print("Scroll down")
-                    networkManager.getByPage(currentScrool: "down")
-                    
-                   } else {
-                      print("Scroll up")
-                    networkManager.getByPage(currentScrool: "up")
-                   }
+                        else{
+                            networkManager.performRequest()
+                        }
+                    }, label: {
+                        Text("Search")
+                    }).transition(.move(edge: .trailing))
+                    .animation(.default)
                 }
-            )
-        }
-        
+                HStack(alignment:.center){
+                    Text("\(networkManager.people.meta?.current_page ?? 0 )" )
+                    Text("/")
+                    Text("\(networkManager.people.meta?.last_page ?? 0)")
+                }
+                
+                ForEach(networkManager.people.data, id:\.id){ person in
+                    VStack{
+                        
+                        CardRow(person: person)
+                    }
+                    
+                }
+                
+            }.padding()
+            
+            .onAppear(perform: {
+                
+                networkManager.performRequest()
+                
+            })
+        }.gesture(
+            DragGesture().onChanged { value in
+                if value.translation.height > 0 {
+//                    print("Scroll down")
+                    currentScrool = "down"
+                    if searchController == ""{
+                        networkManager.getByPage(currentScrool: "down")
+                    }
+                    else{
+                        networkManager.searchPeople(query: searchController,currentScrool: currentScrool)
+                    }
+                    
+                } else {
+//                    print("Scroll up")
+                    currentScrool = "up"
+                    if searchController == ""{
+                        networkManager.getByPage(currentScrool: "up")
+                    }
+                    else{
+                        networkManager.searchPeople(query: searchController,currentScrool: currentScrool)
+                    }
+                }
+            }
+        )
+    }
+    
     var alert: Alert {
         Alert(title: Text("Message"), message: Text("Record Deleted"), dismissButton: .default(Text("Close")))
     }
